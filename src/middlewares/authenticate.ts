@@ -1,62 +1,109 @@
 
 import type { Request, Response, NextFunction } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
+import { prisma } from "../config/prisma.js";
+
+export type AppRole = "USER" | "MODERATOR" | "ADMIN";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
-    role: string;
+    role: AppRole;
   };
 }
 
-export function authenticate(
+function isAppRole(role: unknown): role is AppRole {
+  return (
+    role === "USER" ||
+    role === "MODERATOR" ||
+    role === "ADMIN"
+  );
+}
+
+export async function authenticate(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) {
   const authorization = req.headers.authorization;
 
-  if (!authorization || !authorization.startsWith("Bearer ")) {
-    return res.status(401).json({
+  if (!authorization?.startsWith("Bearer ")) {
+    res.status(401).json({
       success: false,
       message: "Authentication token is required",
     });
+    return;
   }
 
-  const token = authorization.split(" ")[1];
+  const token = authorization.slice(7).trim();
   const secret = process.env.JWT_SECRET;
 
   if (!token || !secret) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: "Invalid authentication token",
     });
+    return;
   }
 
+  let decoded: string | JwtPayload;
+
   try {
-    const decoded = jwt.verify(token, secret);
-
-    if (
-      typeof decoded === "string" ||
-      typeof decoded.sub !== "string" ||
-      typeof decoded.role !== "string"
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication token",
-      });
-    }
-
-    req.user = {
-      id: decoded.sub,
-      role: decoded.role,
-    };
-
-    next();
+    decoded = jwt.verify(token, secret);
   } catch {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: "Invalid or expired token",
     });
+    return;
+  }
+
+  if (
+    typeof decoded === "string" ||
+    typeof decoded.sub !== "string" ||
+    !isAppRole(decoded.role) ||
+    typeof decoded.tokenVersion !== "number"
+  ) {
+    res.status(401).json({
+      success: false,
+      message: "Invalid authentication token",
+    });
+    return;
+  }
+
+  try {
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: decoded.sub,
+      },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        tokenVersion: true,
+      },
+    });
+
+    if (
+      !currentUser ||
+      currentUser.status !== "ACTIVE" ||
+      currentUser.tokenVersion !== decoded.tokenVersion ||
+      currentUser.role !== decoded.role
+    ) {
+      res.status(401).json({
+        success: false,
+        message: "Session is invalid. Please log in again.",
+      });
+      return;
+    }
+
+    req.user = {
+      id: currentUser.id,
+      role: currentUser.role,
+    };
+
+    next();
+  } catch (error) {
+    next(error);
   }
 }

@@ -1,6 +1,12 @@
 import type { Request, Response } from "express";
-import { registerUser } from "./auth.service.js";
-import { loginUser } from "./auth.service.js";
+
+import { loginUser,
+         registerUser,
+        verifyEmailCode,
+        resendVerification,
+        requestPasswordReset,
+        resetPasswordWithCode,
+ } from "./auth.service.js";
 
 import type { AuthenticatedRequest } from "../middlewares/authenticate.js";
 
@@ -124,6 +130,124 @@ export async function login(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: "Unable to complete login",
+    });
+  }
+}
+
+//email Verification
+
+export async function verifyEmail(req: Request, res: Response) {
+  try {
+    await verifyEmailCode(req.body.email, req.body.code);
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now log in.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+
+    if (message === "INVALID_OR_EXPIRED_CODE") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code.",
+      });
+    }
+
+    if (message === "TOO_MANY_CODE_ATTEMPTS") {
+      return res.status(429).json({
+        success: false,
+        message: "Too many attempts. Request a new code.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify email.",
+    });
+  }
+}
+
+//resend verification code
+
+export async function resendVerificationCode(
+  req: Request,
+  res: Response
+) {
+  try {
+    await resendVerification(req.body.email);
+
+    return res.status(200).json({
+      success: true,
+      message: "If the account needs verification, a code will be sent.",
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send verification email. Please try again later.",
+    });
+  }
+}
+
+//forget Password
+
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    await requestPasswordReset(req.body.email);
+
+    return res.status(200).json({
+      success: true,
+      message: "If an eligible account exists, a reset code will be sent.",
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send reset email. Please try again later.",
+    });
+  }
+}
+
+//reset Password
+
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    await resetPasswordWithCode(
+      req.body.email,
+      req.body.code,
+      req.body.password
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully. Please log in again.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+
+    if (message === "INVALID_PASSWORD") {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be between 8 and 72 characters.",
+      });
+    }
+
+    if (message === "INVALID_OR_EXPIRED_CODE") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset code.",
+      });
+    }
+
+    if (message === "TOO_MANY_CODE_ATTEMPTS") {
+      return res.status(429).json({
+        success: false,
+        message: "Too many attempts. Request a new reset code.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reset password.",
     });
   }
 }
