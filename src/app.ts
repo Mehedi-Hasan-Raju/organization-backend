@@ -8,6 +8,9 @@ import authRouter from "./auth/auth.routes.js";
 import adminRouter from "./modules/admin/admin.routes.js";
 import departmentRouter from "./modules/department/department.routes.js";
 import internshipRouter from "./modules/internship/internship.routes.js";
+import memberRoutes from "./modules/member/member.routes.js";
+import noticeRoutes from "./modules/notice/notice.routes.js";
+
 
 const app = express();
 
@@ -19,7 +22,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/departments", departmentRouter);
 app.use("/api/v1/internships", internshipRouter);
-
+app.use("/api/v1/members", memberRoutes);
+app.use("/api/v1/notices", noticeRoutes);
 
 app.get("/api/v1/health", (_req, res) => {
   res.status(200).json({
