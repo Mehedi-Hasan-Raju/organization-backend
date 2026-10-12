@@ -25,6 +25,29 @@ enum TeamMemberStatus {
   INACTIVE
 }
 
+enum InternshipProgramStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum InternshipApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW
+  SELECTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InternshipInterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 model User {
   id            String     @id @default(cuid())
   name          String
@@ -39,7 +62,10 @@ model User {
   passwordResetCodes     PasswordResetCode[]
 
   headedDepartment Department?  @relation("DepartmentHead")
-  teamMemberships  TeamMember[]
+  teamMemberships         TeamMember[]
+  applications            InternshipApplication[] @relation("InternshipApplicant")
+  reviewedApplications    InternshipApplication[] @relation("InternshipReviewer")
+  scheduledInterviews InternshipInterview[] @relation("InterviewScheduler")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,6 +116,7 @@ model Department {
   headUser   User?   @relation("DepartmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
 
   members TeamMember[]
+  internshipPrograms InternshipProgram[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,4 +145,86 @@ model TeamMember {
   @@index([userId])
   @@index([status])
   @@map("team_members")
+}
+
+
+model InternshipProgram {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  requirements String?
+  seats       Int      @default(1)
+  deadline    DateTime?
+  status      InternshipProgramStatus @default(DRAFT)
+
+  departmentId String
+  department   Department @relation( fields: [departmentId],references: [id],onDelete: Restrict)
+
+  applications InternshipApplication[]
+
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([deadline])
+  @@map("internship_programs")
+}
+
+model InternshipApplication {
+  id          String @id @default(cuid())
+  userId      String
+  programId   String
+  cvUrl       String?
+  coverLetter String?
+
+  status InternshipApplicationStatus @default(PENDING)
+  adminNote String?
+
+  reviewerId String?
+  reviewer   User? @relation(  "InternshipReviewer", fields: [reviewerId], references: [id],onDelete: SetNull)
+
+  user User @relation( "InternshipApplicant",fields: [userId], references: [id],onDelete: Cascade)
+
+  program InternshipProgram @relation( fields: [programId],references: [id],onDelete: Restrict)
+ interviews InternshipInterview[]
+
+  appliedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, programId])
+  @@index([programId, status])
+  @@index([userId])
+  @@index([reviewerId])
+  @@map("internship_applications")
+}
+
+
+model InternshipInterview {
+  id            String @id @default(cuid())
+  applicationId String
+
+  scheduledAt    DateTime
+  durationMinutes Int @default(30)
+  meetingUrl     String?
+  location       String?
+  notes          String?
+
+  status InternshipInterviewStatus @default(SCHEDULED)
+
+  interviewerId String?
+  interviewer   User? @relation( "InterviewScheduler", fields: [interviewerId],references: [id],  onDelete: SetNull)
+
+  application InternshipApplication @relation( fields: [applicationId],  references: [id],onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId, scheduledAt])
+  @@index([interviewerId])
+  @@index([status])
+  @@map("internship_interviews")
 }
