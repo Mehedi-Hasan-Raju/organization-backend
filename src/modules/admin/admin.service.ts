@@ -1,4 +1,5 @@
 
+import bcrypt from "bcrypt";
 import { prisma } from "../../config/prisma.js";
 import type {
   UserRole,
@@ -25,6 +26,67 @@ const safeUserSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
+export async function createUser(data: {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}) {
+  const name = data.name.trim();
+  const email = data.email.trim().toLowerCase();
+
+  if (!name || !email) {
+    throw new AdminServiceError("Name and email are required", 400);
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    throw new AdminServiceError(
+      "An account with this email already exists",
+      409
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(data.password, 12);
+
+  try {
+    return await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: data.role,
+        status: "ACTIVE",
+        // The user must verify ownership of their email.
+        emailVerified: false,
+      },
+      select: safeUserSelect,
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AdminServiceError(
+        "An account with this email already exists",
+        409
+      );
+    }
+
+    throw error;
+  }
+}
 
 export async function getDashboardStats() {
   const [
@@ -107,31 +169,63 @@ export async function getUsers(options: GetUsersOptions) {
   };
 }
 
+export async function getUserById(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: safeUserSelect,
+  });
+
+  if (!user) {
+    throw new AdminServiceError("User not found", 404);
+  }
+
+  return user;
+}
+
 export async function updateUserRole(
   targetUserId: string,
   role: UserRole,
   actorUserId: string
 ) {
   if (targetUserId === actorUserId) {
-    throw new AdminServiceError(
-      "You cannot change your own role",
-      403
-    );
+    throw new AdminServiceError("You cannot change your own role", 403);
   }
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: targetUserId },
-    select: { id: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const targetUser = await tx.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, status: true },
+    });
 
-  if (!targetUser) {
-    throw new AdminServiceError("User not found", 404);
-  }
+    if (!targetUser) {
+      throw new AdminServiceError("User not found", 404);
+    }
 
-  return prisma.user.update({
-    where: { id: targetUserId },
-    data: { role },
-    select: safeUserSelect,
+    if (
+      targetUser.role === "ADMIN" &&
+      targetUser.status === "ACTIVE" &&
+      role !== "ADMIN"
+    ) {
+      const activeAdminCount = await tx.user.count({
+        where: { role: "ADMIN", status: "ACTIVE" },
+      });
+
+      if (activeAdminCount <= 1) {
+        throw new AdminServiceError(
+          "Cannot remove the last active admin",
+          409
+        );
+      }
+    }
+
+    return tx.user.update({
+      where: { id: targetUserId },
+      data: {
+        role,
+        tokenVersion: { increment: 1 },
+      },
+      select: safeUserSelect,
+    });
   });
 }
 
@@ -147,18 +241,40 @@ export async function updateUserStatus(
     );
   }
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: targetUserId },
-    select: { id: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const targetUser = await tx.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, status: true },
+    });
 
-  if (!targetUser) {
-    throw new AdminServiceError("User not found", 404);
-  }
+    if (!targetUser) {
+      throw new AdminServiceError("User not found", 404);
+    }
 
-  return prisma.user.update({
-    where: { id: targetUserId },
-    data: { status },
-    select: safeUserSelect,
+    if (
+      targetUser.role === "ADMIN" &&
+      targetUser.status === "ACTIVE" &&
+      status !== "ACTIVE"
+    ) {
+      const activeAdminCount = await tx.user.count({
+        where: { role: "ADMIN", status: "ACTIVE" },
+      });
+
+      if (activeAdminCount <= 1) {
+        throw new AdminServiceError(
+          "Cannot deactivate or suspend the last active admin",
+          409
+        );
+      }
+    }
+
+    return tx.user.update({
+      where: { id: targetUserId },
+      data: {
+        status,
+        tokenVersion: { increment: 1 },
+      },
+      select: safeUserSelect,
+    });
   });
 }

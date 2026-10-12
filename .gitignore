@@ -9,3 +9,8 @@ dist/
 .windsurf
 generated/prisma
 .generated/prisma
+
+/dist
+.dist
+dist/src
+/dist/src/generated

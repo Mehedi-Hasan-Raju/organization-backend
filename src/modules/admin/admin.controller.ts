@@ -3,8 +3,10 @@ import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/authenticate.js";
 import {
   AdminServiceError,
+  createUser,
   getDashboardStats,
   getUsers,
+  getUserById,
   updateUserRole,
   updateUserStatus,
 } from "./admin.service.js";
@@ -31,6 +33,35 @@ function handleError(
 
 function getActorId(req: AuthenticatedRequest): string | null {
   return req.user?.id ?? null;
+}
+
+function getParamId(req: AuthenticatedRequest): string {
+  const id = req.params.id;
+  return Array.isArray(id) ? id[0] ?? "" : id ?? "";
+}
+
+export async function createAdminManagedUser(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = await createUser({
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      role: req.body.role as UserRole,
+    });
+
+    res.status(201).json({
+      success: true,
+      message:
+        "User created. Email verification is required before login.",
+      data: { user },
+    });
+  } catch (error) {
+    handleError(error, res, next);
+  }
 }
 
 export async function adminDashboard(
@@ -95,10 +126,7 @@ export async function listUsers(
     const validRoles = ["USER", "MODERATOR", "ADMIN"];
     const validStatuses = ["ACTIVE", "INACTIVE", "SUSPENDED"];
 
-    if (
-      roleValue !== undefined &&
-      !validRoles.includes(roleValue)
-    ) {
+    if (roleValue !== undefined && !validRoles.includes(roleValue)) {
       res.status(400).json({
         success: false,
         message: "Invalid role filter",
@@ -141,6 +169,24 @@ export async function listUsers(
   }
 }
 
+export async function getUserDetails(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = await getUserById(getParamId(req));
+
+    res.status(200).json({
+      success: true,
+      message: "User retrieved successfully",
+      data: { user },
+    });
+  } catch (error) {
+    handleError(error, res, next);
+  }
+}
+
 export async function changeUserRole(
   req: AuthenticatedRequest,
   res: Response,
@@ -158,7 +204,7 @@ export async function changeUserRole(
 
   try {
     const user = await updateUserRole(
-      Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id,
+      getParamId(req),
       req.body.role as UserRole,
       actorId
     );
@@ -190,7 +236,7 @@ export async function changeUserStatus(
 
   try {
     const user = await updateUserStatus(
-      Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id,
+      getParamId(req),
       req.body.status as UserStatus,
       actorId
     );

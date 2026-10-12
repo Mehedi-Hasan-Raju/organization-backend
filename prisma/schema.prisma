@@ -20,6 +20,11 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum TeamMemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
   id            String     @id @default(cuid())
   name          String
@@ -32,6 +37,9 @@ model User {
 
   emailVerificationCodes EmailVerificationCode[]
   passwordResetCodes     PasswordResetCode[]
+
+  headedDepartment Department?  @relation("DepartmentHead")
+  teamMemberships  TeamMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -49,7 +57,7 @@ model EmailVerificationCode {
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
 
-  user User @relation( fields: [userId],references: [id],onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -64,9 +72,50 @@ model PasswordResetCode {
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id],onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_codes")
+}
+
+model Department {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  headUserId String? @unique
+  headUser   User?   @relation("DepartmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+
+  members TeamMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("departments")
+}
+
+model TeamMember {
+  id            String           @id @default(cuid())
+  userId        String
+  departmentId  String
+  designation   String
+  isSupervisor  Boolean          @default(false)
+  status        TeamMemberStatus @default(ACTIVE)
+  joinedAt      DateTime         @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, departmentId])
+  @@index([departmentId])
+  @@index([userId])
+  @@index([status])
+  @@map("team_members")
 }

@@ -6,6 +6,7 @@ import { prisma } from "./config/prisma.js";
 
 import authRouter from "./auth/auth.routes.js";
 import adminRouter from "./modules/admin/admin.routes.js";
+import departmentRouter from "./modules/department/department.routes.js";
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.use(express.json());
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/admin", adminRouter);
-
+app.use("/api/v1/departments", departmentRouter);
 
 
 app.get("/api/v1/health", (_req, res) => {
