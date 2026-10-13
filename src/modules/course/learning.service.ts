@@ -7,10 +7,19 @@ import {
 import { prisma } from "../../config/prisma.js";
 import { CourseServiceError } from "./course.service.js";
 
-export async function demoPayAndEnroll(userId: string, courseId: string) {
+
+export async function demoPayAndEnroll(
+  userId: string,
+  courseId: string,
+) {
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { id: true, price: true, status: true },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      status: true,
+    },
   });
 
   if (!course) {
@@ -18,38 +27,70 @@ export async function demoPayAndEnroll(userId: string, courseId: string) {
   }
 
   if (course.status !== CourseStatus.PUBLISHED) {
-    throw new CourseServiceError("This course is not available for enrollment.");
+    throw new CourseServiceError(
+      "This course is not available for enrollment.",
+    );
   }
 
-  const existingEnrollment = await prisma.courseEnrollment.findUnique({
-    where: { userId_courseId: { userId, courseId } },
-  });
+  const existingEnrollment =
+    await prisma.courseEnrollment.findUnique({
+      where: {
+        userId_courseId: { userId, courseId },
+      },
+    });
 
-  if (existingEnrollment) {
-    return { alreadyEnrolled: true, enrollment: existingEnrollment };
+  if (
+    existingEnrollment &&
+    existingEnrollment.status !== CourseEnrollmentStatus.CANCELLED
+  ) {
+    return {
+      success: true,
+      message: "You are already enrolled in this course.",
+      alreadyEnrolled: true,
+      enrollment: existingEnrollment,
+      redirectUrl: `/courses/my-courses/${course.id}`,
+    };
   }
 
   try {
-    const enrollment = await prisma.$transaction(async (transaction) => {
-      const createdEnrollment = await transaction.courseEnrollment.create({
-        data: { userId, courseId },
-      });
-
-      await transaction.coursePayment.create({
+    const result = await prisma.$transaction(async (transaction) => {
+      const payment = await transaction.coursePayment.create({
         data: {
           userId,
           courseId,
           amount: course.price,
-          transactionId: randomUUID(),
+          transactionId: `DEMO-${randomUUID()}`,
           paymentMethod: "DEMO",
+          status: "SUCCESS",
           isDemo: true,
         },
       });
 
-      return createdEnrollment;
+      const enrollment = existingEnrollment
+        ? await transaction.courseEnrollment.update({
+            where: { id: existingEnrollment.id },
+            data: {
+              status: CourseEnrollmentStatus.ACTIVE,
+              enrolledAt: new Date(),
+              completedAt: null,
+            },
+          })
+        : await transaction.courseEnrollment.create({
+            data: { userId, courseId },
+          });
+
+      return { payment, enrollment };
     });
 
-    return { alreadyEnrolled: false, enrollment };
+    return {
+      success: true,
+      message: "Payment Successful!",
+      demoPayment: true,
+      alreadyEnrolled: false,
+      payment: result.payment,
+      enrollment: result.enrollment,
+      redirectUrl: `/courses/my-courses/${course.id}`,
+    };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -59,8 +100,17 @@ export async function demoPayAndEnroll(userId: string, courseId: string) {
         where: { userId_courseId: { userId, courseId } },
       });
 
-      if (enrollment) {
-        return { alreadyEnrolled: true, enrollment };
+      if (
+        enrollment &&
+        enrollment.status !== CourseEnrollmentStatus.CANCELLED
+      ) {
+        return {
+          success: true,
+          message: "You are already enrolled in this course.",
+          alreadyEnrolled: true,
+          enrollment,
+          redirectUrl: `/courses/my-courses/${course.id}`,
+        };
       }
     }
 

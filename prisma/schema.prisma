@@ -71,6 +71,14 @@ enum CourseEnrollmentStatus {
 }
 
 
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+
+
 model User {
   id            String     @id @default(cuid())
   name          String
@@ -78,7 +86,10 @@ model User {
   passwordHash  String
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)
-  emailVerified Boolean    @default(false)
+  emailVerified Boolean @default(false)
+  avatarUrl     String?
+  avatarPublicId String?
+
   tokenVersion  Int        @default(0)
 
   emailVerificationCodes EmailVerificationCode[]
@@ -92,6 +103,8 @@ model User {
   createdCourses         Course[]           @relation("CourseCreator")
   coursePayments           CoursePayment[]
   courseEnrollments        CourseEnrollment[]
+  createdEvents  Event[] @relation("EventCreator")
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -393,4 +406,29 @@ model CourseLessonProgress {
   @@unique([enrollmentId, lessonId])
   @@index([lessonId, isCompleted])
   @@map("course_lesson_progress")
+}
+
+
+model Event {
+  id            String      @id @default(cuid())
+  title         String
+  slug          String      @unique
+  summary       String?     @db.VarChar(500)
+  description   String      @db.Text
+  imageUrl      String?
+  imagePublicId String?
+  location      String?
+  startDate     DateTime
+  endDate       DateTime?
+  status        EventStatus @default(DRAFT)
+  createdById   String
+  createdBy     User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  publishedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status, startDate])
+  @@index([createdById])
+  @@index([createdAt])
+  @@map("events")
 }

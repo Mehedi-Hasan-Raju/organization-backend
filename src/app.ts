@@ -12,7 +12,9 @@ import memberRoutes from "./modules/member/member.routes.js";
 import noticeRoutes from "./modules/notice/notice.routes.js";
 import courseRoutes from "./modules/course/course.routes.js";
 import learningRoutes from "./modules/course/learning.routes.js";
-
+import uploadRoutes from "./modules/upload/upload.routes.js";
+import eventRoutes from "./modules/event/event.routes.js";
+import userDashboardRoutes from "./modules/user-dashboard/user-dashboard.routes.js";
 
 const app = express();
 
@@ -28,6 +30,11 @@ app.use("/api/v1/members", memberRoutes);
 app.use("/api/v1/notices", noticeRoutes);
 app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/courses", learningRoutes);
+app.use("/api/v1/uploads", uploadRoutes);
+app.use("/api/v1/events", eventRoutes);
+app.use("/api/v1/user-dashboard", userDashboardRoutes);
+
+
 
 app.get("/api/v1/health", (_req, res) => {
   res.status(200).json({

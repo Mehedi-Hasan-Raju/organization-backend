@@ -15,7 +15,7 @@ router.use(authenticate);
 
 router.get("/my-courses", myCourses);
 router.get("/my-courses/:courseId", myLearningCourse);
-router.post("/:courseId/pay", payAndEnroll);
+router.post("/:courseId/pay",authenticate, payAndEnroll);
 router.patch(
   "/my-courses/:courseId/lessons/:lessonId/complete",
   markLessonComplete,

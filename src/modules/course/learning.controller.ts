@@ -40,6 +40,12 @@ export async function payAndEnroll(
       (req as AuthRequest).user.id,
       courseId,
     );
+    const {
+      success: _success,
+      message: _message,
+      demoPayment: _demoPayment,
+      ...payload
+    } = result;
 
     return res.status(result.alreadyEnrolled ? 200 : 201).json({
       success: true,
@@ -47,7 +53,7 @@ export async function payAndEnroll(
         ? "You are already enrolled in this course."
         : "Demo payment successful. You are now enrolled.",
       demoPayment: true,
-      ...result,
+      ...payload,
     });
   } catch (error) {
     return handleError(error, res, next);
