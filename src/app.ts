@@ -10,6 +10,8 @@ import departmentRouter from "./modules/department/department.routes.js";
 import internshipRouter from "./modules/internship/internship.routes.js";
 import memberRoutes from "./modules/member/member.routes.js";
 import noticeRoutes from "./modules/notice/notice.routes.js";
+import courseRoutes from "./modules/course/course.routes.js";
+import learningRoutes from "./modules/course/learning.routes.js";
 
 
 const app = express();
@@ -24,6 +26,8 @@ app.use("/api/v1/departments", departmentRouter);
 app.use("/api/v1/internships", internshipRouter);
 app.use("/api/v1/members", memberRoutes);
 app.use("/api/v1/notices", noticeRoutes);
+app.use("/api/v1/courses", courseRoutes);
+app.use("/api/v1/courses", learningRoutes);
 
 app.get("/api/v1/health", (_req, res) => {
   res.status(200).json({
