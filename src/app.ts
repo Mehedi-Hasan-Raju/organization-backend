@@ -15,6 +15,8 @@ import learningRoutes from "./modules/course/learning.routes.js";
 import uploadRoutes from "./modules/upload/upload.routes.js";
 import eventRoutes from "./modules/event/event.routes.js";
 import userDashboardRoutes from "./modules/user-dashboard/user-dashboard.routes.js";
+import homepageRoutes from "./modules/homepage/homepage.routes.js";
+
 
 const app = express();
 
@@ -33,7 +35,7 @@ app.use("/api/v1/courses", learningRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/user-dashboard", userDashboardRoutes);
-
+app.use("/api/v1/homepage", homepageRoutes);
 
 
 app.get("/api/v1/health", (_req, res) => {
