@@ -54,16 +54,18 @@ const updateMemberSchema = z.object({
   { message: "Provide at least one field to update." },
 );
 
+// Public directory and department detail.
+departmentRouter.get("/", getDepartments);
+departmentRouter.get("/:id", getDepartment);
+
 departmentRouter.use(authenticate, authorize("ADMIN"));
 
 // Department CRUD
-departmentRouter.get("/", getDepartments);
 departmentRouter.post(
   "/",
   validateBody(createDepartmentSchema),
   postDepartment,
 );
-departmentRouter.get("/:id", getDepartment);
 departmentRouter.patch(
   "/:id",
   validateBody(updateDepartmentSchema),

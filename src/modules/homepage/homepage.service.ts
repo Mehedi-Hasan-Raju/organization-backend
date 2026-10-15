@@ -31,6 +31,7 @@ export async function getHomepageData() {
     notices,
     events,
     teamMembers,
+    departments,
   ] = await Promise.all([
     // Count unique active users who are active department members.
     prisma.user.count({
@@ -184,6 +185,24 @@ export async function getHomepageData() {
       ],
       take: 8,
     }),
+
+    prisma.department.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        _count: {
+          select: {
+            members: {
+              where: { status: TeamMemberStatus.ACTIVE },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   return {
@@ -201,5 +220,6 @@ export async function getHomepageData() {
     notices,
     events,
     teamMembers,
+    departments,
   };
 }

@@ -34,3 +34,8 @@ export const resetPasswordSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Code must contain 6 digits"),
   password: z.string().min(8).max(72),
 }).strict();
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(72),
+  newPassword: z.string().min(8).max(72),
+}).strict();

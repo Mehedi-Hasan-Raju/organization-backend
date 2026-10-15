@@ -5,6 +5,7 @@ import {
   deleteCourseHandler,
   deleteLessonHandler,
   deleteModuleHandler,
+  getAdminCourse,
   getAdminCourses,
   getCourse,
   getCourseAnalytics,
@@ -32,6 +33,7 @@ router.get("/", getCourses);
 // Admin / Moderator reporting and course list
 router.get("/admin/analytics", ...managers, getCourseAnalytics);
 router.get("/admin/list", ...managers, getAdminCourses);
+router.get("/admin/:id", ...managers, getAdminCourse);
 
 // Course CRUD and publishing
 router.post("/", ...managers, postCourse);

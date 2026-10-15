@@ -8,6 +8,7 @@ import {
   resendVerificationCode,
   forgotPassword,
   resetPassword,
+  changePassword,
 } from "./auth.controller.js";
 
 
@@ -23,6 +24,7 @@ import {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "./auth.validation.js";
 
 
@@ -68,6 +70,14 @@ authRouter.post(
   authRateLimiter,
   validateBody(resetPasswordSchema),
   resetPassword
+);
+
+authRouter.post(
+  "/change-password",
+  authRateLimiter,
+  authenticate,
+  validateBody(changePasswordSchema),
+  changePassword,
 );
 
 authRouter.get("/me", authenticate, getMe);

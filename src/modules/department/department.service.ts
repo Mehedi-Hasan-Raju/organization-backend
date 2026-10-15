@@ -25,6 +25,21 @@ const departmentInclude = {
   _count: { select: { members: true } },
 };
 
+const publicDepartmentSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  description: true,
+  isActive: true,
+  _count: {
+    select: {
+      members: {
+        where: { status: "ACTIVE" as const },
+      },
+    },
+  },
+};
+
 const memberInclude = {
   user: { select: userSelect },
   department: {
@@ -73,7 +88,8 @@ function handleDuplicate(error: unknown): never {
 // List departments
 export async function listDepartments() {
   return prisma.department.findMany({
-    include: departmentInclude,
+    where: { isActive: true },
+    select: publicDepartmentSelect,
     orderBy: { createdAt: "desc" },
   });
 }
@@ -118,15 +134,35 @@ export async function createDepartment(data: {
 
 // Department details and members
 export async function getDepartmentById(id: string) {
-  const department = await prisma.department.findUnique({
-    where: { id },
-    include: {
-      headUser: { select: userSelect },
+  const department = await prisma.department.findFirst({
+    where: {
+      isActive: true,
+      OR: [{ id }, { slug: id }],
+    },
+    select: {
+      ...publicDepartmentSelect,
+      headUser: {
+        select: {
+          name: true,
+          avatarUrl: true,
+        },
+      },
       members: {
-        include: memberInclude,
+        where: { status: "ACTIVE" },
+        select: {
+          id: true,
+          designation: true,
+          isSupervisor: true,
+          status: true,
+          user: {
+            select: {
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
       },
-      _count: { select: { members: true } },
     },
   });
 

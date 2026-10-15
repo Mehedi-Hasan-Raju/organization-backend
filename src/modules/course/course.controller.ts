@@ -8,6 +8,7 @@ import {
   createCourse,
   createLesson,
   createModule,
+  getAdminCourseById,
   getCourseAdminAnalytics,
   getPublicCourseBySlug,
   listAdminCourses,
@@ -221,6 +222,26 @@ export async function getAdminCourses(
     });
 
     return res.json({ success: true, ...result });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
+export async function getAdminCourse(
+  req: Request, res: Response, next: NextFunction,
+) {
+  try {
+    const courseId = getRequiredParam(req, "id");
+
+    if (!courseId) {
+      return res.status(400).json({
+        success: false,
+        message: "Course ID is required.",
+      });
+    }
+
+    const course = await getAdminCourseById(courseId);
+    return res.json({ success: true, course });
   } catch (error) {
     return handleError(error, res, next);
   }

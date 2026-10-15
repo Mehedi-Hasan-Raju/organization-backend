@@ -6,6 +6,7 @@ import { loginUser,
         resendVerification,
         requestPasswordReset,
         resetPasswordWithCode,
+        changeUserPassword,
  } from "./auth.service.js";
 
 import type { AuthenticatedRequest } from "../middlewares/authenticate.js";
@@ -16,6 +17,59 @@ export function getMe(req: AuthenticatedRequest, res: Response) {
     message: "Authentication successful",
     user: req.user,
   });
+}
+
+export async function changePassword(
+  req: AuthenticatedRequest,
+  res: Response,
+) {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication is required.",
+    });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    await changeUserPassword(userId, currentPassword, newPassword);
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+
+    if (message === "INVALID_CURRENT_PASSWORD") {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect.",
+      });
+    }
+
+    if (message === "INVALID_PASSWORD") {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be between 8 and 72 characters.",
+      });
+    }
+
+    if (message === "USER_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    console.error("Change password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to change password.",
+    });
+  }
 }
 
 

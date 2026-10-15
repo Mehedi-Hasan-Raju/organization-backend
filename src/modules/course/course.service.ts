@@ -165,7 +165,7 @@ export async function listPublicCourses(options: {
       : {}),
   };
 
-  const [courses, total] = await prisma.$transaction([
+  const [courses, total] = await Promise.all([
     prisma.course.findMany({
       where,
       skip: (page - 1) * limit,
@@ -244,7 +244,7 @@ export async function listAdminCourses(options: {
       : {}),
   };
 
-  const [courses, total] = await prisma.$transaction([
+  const [courses, total] = await Promise.all([
     prisma.course.findMany({
       where,
       skip: (page - 1) * limit,
@@ -267,6 +267,28 @@ export async function listAdminCourses(options: {
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+export async function getAdminCourseById(id: string) {
+  const course = await prisma.course.findUnique({
+    where: { id },
+    include: {
+      modules: {
+        orderBy: { order: "asc" },
+        include: {
+          lessons: {
+            orderBy: { order: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  if (!course) {
+    throw new CourseServiceError("Course not found.", 404);
+  }
+
+  return course;
 }
 
 export async function createModule(

@@ -170,7 +170,7 @@ export async function listPublicNotices(options: {
       : {}),
   };
 
-  const [total, notices] = await prisma.$transaction([
+  const [total, notices] = await Promise.all([
     prisma.notice.count({ where }),
     prisma.notice.findMany({
       where,
@@ -243,7 +243,7 @@ export async function listAdminNotices(options: {
       : {}),
   };
 
-  const [total, notices] = await prisma.$transaction([
+  const [total, notices] = await Promise.all([
     prisma.notice.count({ where }),
     prisma.notice.findMany({
       where,

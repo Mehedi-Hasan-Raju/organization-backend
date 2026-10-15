@@ -459,3 +459,42 @@ export async function resetPasswordWithCode(
     });
   });
 }
+
+export async function changeUserPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  if (
+    typeof newPassword !== "string" ||
+    newPassword.length < 8 ||
+    newPassword.length > 72
+  ) {
+    throw new Error("INVALID_PASSWORD");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
+
+  if (!user) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  const passwordMatches = await bcrypt.compare(
+    currentPassword,
+    user.passwordHash,
+  );
+
+  if (!passwordMatches) {
+    throw new Error("INVALID_CURRENT_PASSWORD");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+}
